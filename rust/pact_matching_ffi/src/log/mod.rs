@@ -16,6 +16,9 @@ pub use crate::log::ffi::{
     log_to_stdout,
     log_to_stderr,
     log_to_file,
-    log_to_buffer
+    log_to_buffer,
+    init,
+    init_with_log_level,
+    log_message
 };
 pub(crate) use crate::log::target::TARGET;

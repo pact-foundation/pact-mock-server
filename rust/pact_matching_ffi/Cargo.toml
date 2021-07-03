@@ -23,6 +23,7 @@ log = "0.4.8"
 serde_json = "1.0.51"
 bytes = "1.0.1"
 lazy_static = "1.4.0"
+env_logger = "0.8.2"
 
 [lib]
 crate-type = ["rlib", "cdylib", "staticlib"]

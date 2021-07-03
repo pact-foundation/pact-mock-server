@@ -93,7 +93,10 @@ pub use pact_matching_ffi::log::{
   log_to_stdout,
   log_to_stderr,
   log_to_file,
-  log_to_buffer
+  log_to_buffer,
+  init,
+  init_with_log_level,
+  log_message
 };
 
 pub mod handles;
@@ -105,32 +108,6 @@ const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 #[no_mangle]
 pub extern "C" fn version() -> *const c_char {
   VERSION.as_ptr() as *const c_char
-}
-
-/// Initialise the mock server library, can provide an environment variable name to use to
-/// set the log levels.
-///
-/// # Safety
-///
-/// Exported functions are inherently unsafe.
-#[no_mangle]
-pub unsafe extern fn init(log_env_var: *const c_char) {
-  let log_env_var = if !log_env_var.is_null() {
-    let c_str = CStr::from_ptr(log_env_var);
-    match c_str.to_str() {
-      Ok(str) => str,
-      Err(err) => {
-        warn!("Failed to parse the environment variable name as a UTF-8 string: {}", err);
-        "LOG_LEVEL"
-      }
-    }
-  } else {
-    "LOG_LEVEL"
-  };
-
-  let env = env_logger::Env::new().filter(log_env_var);
-  let mut builder = Builder::from_env(env);
-  builder.try_init().unwrap_or(());
 }
 
 /// External interface to create a mock server. A pointer to the pact JSON as a C string is passed in,

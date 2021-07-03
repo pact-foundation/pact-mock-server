@@ -17,6 +17,9 @@ use crate::log::logger::{add_sink, apply_logger, set_logger};
 use crate::log::sink::Sink;
 use crate::log::status::Status;
 use crate::util::string::to_c;
+use log::*;
+use std::str::FromStr;
+use env_logger::Builder;
 
 /// Convenience function to direct all logging to stdout.
 #[no_mangle]
@@ -311,3 +314,99 @@ pub unsafe extern "C" fn fetch_log_buffer(log_id: *const c_char,) -> *const c_ch
     }
   }
 }
+
+/// Initialise the mock server library, can provide an environment variable name to use to
+/// set the log levels.
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
+#[no_mangle]
+pub unsafe extern fn init(log_env_var: *const c_char) {
+  let log_env_var = if !log_env_var.is_null() {
+    let c_str = CStr::from_ptr(log_env_var);
+    match c_str.to_str() {
+      Ok(str) => str,
+      Err(err) => {
+        warn!("Failed to parse the environment variable name as a UTF-8 string: {}", err);
+        "LOG_LEVEL"
+      }
+    }
+  } else {
+    "LOG_LEVEL"
+  };
+
+  let env = env_logger::Env::new().filter(log_env_var);
+  let mut builder = Builder::from_env(env);
+  builder.try_init().unwrap_or(());
+}
+
+/// Initialises the log and sets the level explicitly.
+///
+/// # Safety
+///
+/// Exported functions are inherently unsafe.
+#[no_mangle]
+pub unsafe extern "C" fn init_with_log_level(level: *const c_char) {
+  let mut builder = Builder::from_default_env();
+  let log_level = log_level_from_c_char(level);
+
+  builder.filter_level(log_level.to_level_filter());
+  builder.try_init().unwrap_or(());
+}
+
+/// Log using the shared core logging facility.
+///
+/// * `source` - String. The source of the log, such as the class or caller framework to
+///                      disambiguate log lines from the rust logging (e.g. pact_go)
+/// * `log_level` - String. One of TRACE, DEBUG, INFO, WARN, ERROR
+/// * `message` - Message to log
+///
+/// Exported functions are inherently unsafe.
+#[no_mangle]
+pub unsafe extern "C" fn log_message(source: *const c_char, log_level: *const c_char, message: *const c_char) {
+  let target = convert_cstr("target", source).unwrap_or("client");
+
+  if !message.is_null() {
+    match convert_cstr("message", message) {
+      Some(message) => log!(
+        target: target,
+        log_level_from_c_char(log_level),
+        "{}",
+        message
+      ),
+      None => (),
+    }
+  }
+}
+
+unsafe fn log_level_from_c_char(log_level: *const c_char) -> log::Level {
+  if !log_level.is_null() {
+    let level = convert_cstr("log_level", log_level).unwrap_or("INFO");
+
+    log::Level::from_str(level).unwrap_or(log::Level::Info)
+  } else {
+    log::Level::Info
+  }
+}
+
+
+  fn convert_cstr(name: &str, value: *const c_char) -> Option<&str> {
+    unsafe {
+      if value.is_null() {
+        warn!("{} is NULL!", name);
+        None
+      } else {
+        let c_str = CStr::from_ptr(value);
+        match c_str.to_str() {
+          Ok(str) => Some(str),
+          Err(err) => {
+            warn!(
+              "Failed to parse {} name as a UTF-8 string: {}",
+              name, err
+            );
+            None
+          }
+        }
+      }
+    }}

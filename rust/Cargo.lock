@@ -1125,6 +1125,7 @@ version = "0.0.5"
 dependencies = [
  "anyhow",
  "bytes",
+ "env_logger",
  "fern",
  "lazy_static",
  "libc",
